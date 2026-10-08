@@ -90,6 +90,22 @@
       });
     });
     const translateText = (text, language) => language === 'en' && englishTranslations[text.trim()] ? text.replace(text.trim(), englishTranslations[text.trim()]) : text;
+    let detectedCountry = null;
+    const contactForCountry = country => String(country || '').toUpperCase() === 'US'
+      ? { location: 'New York, United States', displayPhone: '+1 (347) 701-8621', phone: '13477018621', area: 'United States' }
+      : { location: 'Guayaquil, Ecuador', displayPhone: '+593 96 327 7286', phone: '593963277286', area: 'Ecuador' };
+    const locationElements = [...document.querySelectorAll('.detail strong, .footer-links span')].filter(element => element.textContent.trim() === 'Guayaquil, Ecuador');
+    const phoneElements = [...document.querySelectorAll('a[href="https://wa.me/593963277286"]')];
+    function applyContactCountry() {
+      const contact = contactForCountry(detectedCountry);
+      locationElements.forEach(element => { element.textContent = contact.location; });
+      phoneElements.forEach(element => { element.textContent = contact.displayPhone; element.href = `https://wa.me/${contact.phone}`; });
+      const structured = document.querySelector('script[type="application/ld+json"]');
+      const data = JSON.parse(structured.textContent);
+      data['@graph'][0].telephone = `+${contact.phone}`;
+      data['@graph'][0].areaServed = contact.area;
+      structured.textContent = JSON.stringify(data);
+    }
     function applyLanguage(language) {
       document.documentElement.lang = language;
       translationNodes.forEach(([node, original]) => { node.nodeValue = translateText(original, language); });
@@ -105,6 +121,7 @@
       data['@graph'][0].description = english ? 'Custom software development, web systems, automation and integrations for businesses.' : 'Desarrollo de software a medida, sistemas web, automatización e integraciones para empresas.';
       data['@graph'][1].description = english ? 'Inventory and invoicing software that adapts to each business process.' : 'Software de inventario y facturación adaptable a los procesos de cada empresa.';
       structured.textContent = JSON.stringify(data);
+      applyContactCountry();
       document.getElementById('language').value = language;
       document.getElementById('menu').setAttribute('aria-label', english ? (document.getElementById('menu').getAttribute('aria-expanded') === 'true' ? 'Close menu' : 'Open menu') : (document.getElementById('menu').getAttribute('aria-expanded') === 'true' ? 'Cerrar menú' : 'Abrir menú'));
     }
@@ -131,7 +148,11 @@
       applyLanguage(manualLanguage);
     });
     applyLanguage(manualLanguage || 'en');
-    if (!manualLanguage) detectCountry().then(country => { if (!manualLanguage) applyLanguage(languageForCountry(country)); });
+    detectCountry().then(country => {
+      detectedCountry = country;
+      if (!manualLanguage) applyLanguage(languageForCountry(country));
+      else applyContactCountry();
+    });
   </script>
   <script>
     const header=document.getElementById('header'),menu=document.getElementById('menu'),links=document.getElementById('links');
@@ -139,7 +160,7 @@
     menu.addEventListener('click',()=>{const open=links.classList.toggle('open');menu.setAttribute('aria-expanded',open);menu.setAttribute('aria-label',document.documentElement.lang==='en'?(open?'Close menu':'Open menu'):(open?'Cerrar menú':'Abrir menú'));document.body.classList.toggle('menu-open',open)});
     links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{links.classList.remove('open');menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-label',document.documentElement.lang==='en'?'Open menu':'Abrir menú');document.body.classList.remove('menu-open')}));
     const items=document.querySelectorAll('[data-reveal]');if('IntersectionObserver'in window&&!matchMedia('(prefers-reduced-motion:reduce)').matches){const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target)}}),{threshold:.12});items.forEach(item=>observer.observe(item))}else items.forEach(item=>item.classList.add('visible'));
-    document.getElementById('contactForm').addEventListener('submit',event=>{event.preventDefault();const data=new FormData(event.currentTarget),name=String(data.get('name')||'').trim(),company=String(data.get('company')||'').trim(),interest=String(data.get('interest')||'').trim(),message=String(data.get('message')||'').trim(),text=document.documentElement.lang==='en'?`Hi, I am ${name}${company?` from ${company}`:''}.\n\n${interest}.\n\n${message}`:`Hola, soy ${name}${company?` de ${company}`:''}.\n\n${interest}.\n\n${message}`;open(`https://wa.me/593963277286?text=${encodeURIComponent(text)}`,'_blank','noopener')});
+    document.getElementById('contactForm').addEventListener('submit',event=>{event.preventDefault();const data=new FormData(event.currentTarget),name=String(data.get('name')||'').trim(),company=String(data.get('company')||'').trim(),interest=String(data.get('interest')||'').trim(),message=String(data.get('message')||'').trim(),text=document.documentElement.lang==='en'?`Hi, I am ${name}${company?` from ${company}`:''}.\n\n${interest}.\n\n${message}`:`Hola, soy ${name}${company?` de ${company}`:''}.\n\n${interest}.\n\n${message}`;open(`https://wa.me/${contactForCountry(detectedCountry).phone}?text=${encodeURIComponent(text)}`,'_blank','noopener')});
     document.getElementById('year').textContent=new Date().getFullYear();
   </script>
 </body>
